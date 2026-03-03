@@ -51,30 +51,6 @@ You speak → OpenCode works → Plugin notifies SuperWhisper → You speak back
 | `permission.asked` | `permission` | Tool needs approval |
 | `question.asked` | `question` | Agent is asking a question |
 
-## Configuration
-
-### SuperWhisper Scheme Detection
-
-The plugin auto-detects debug vs production SuperWhisper:
-
-- Debug build (Xcode): `superwhisper-debug://`
-- Production: `superwhisper://`
-- Override with `SUPERWHISPER_SCHEME` env var:
-
-```bash
-export SUPERWHISPER_SCHEME=superwhisper        # production
-export SUPERWHISPER_SCHEME=superwhisper-debug   # debug
-```
-
-## Development
-
-```bash
-bun install
-bun test
-bun run typecheck
-bun run build
-```
-
 ### Project Structure
 
 ```
