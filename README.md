@@ -11,7 +11,7 @@ Get voice notifications when your AI coding tasks complete, and respond with you
 
 ## Installation
 
-Add to your `opencode.json`:
+Add to your `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -19,14 +19,7 @@ Add to your `opencode.json`:
 }
 ```
 
-Or install locally:
-
-```bash
-mkdir -p ~/.config/opencode/plugin && curl -fsSL -o ~/.config/opencode/plugin/superwhisper.ts \
-  https://raw.githubusercontent.com/superwhisper/opencode-superwhisper/main/src/index.ts
-```
-
-The plugin auto-loads from `~/.config/opencode/plugin/` — no config changes needed.
+OpenCode will resolve the plugin from npm automatically.
 
 ## How It Works
 
