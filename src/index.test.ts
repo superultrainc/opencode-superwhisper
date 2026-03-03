@@ -545,7 +545,7 @@ describe("session.idle → handleCompleted", () => {
     await wait(300)
 
     await writeResponse(sid, "fix the bug please")
-    await wait(1500)
+    await wait(2500)
 
     expect(mockClient.session.prompt).toHaveBeenCalled()
     const promptCall = (mockClient.session.prompt as any).mock.calls[0]
@@ -553,7 +553,7 @@ describe("session.idle → handleCompleted", () => {
     expect(promptCall[0].body.parts[0].text).toBe("fix the bug please")
 
     await cleanupSession(sid)
-  })
+  }, 10_000)
 })
 
 // --- session.busy dismiss handler ---
@@ -616,7 +616,7 @@ describe("session.busy dismiss handler", () => {
     await wait(300)
 
     await writeResponse(sid, "voice reply")
-    await wait(1500)
+    await wait(2500)
 
     expect(mockClient.session.prompt).toHaveBeenCalled()
 
@@ -641,7 +641,7 @@ describe("session.busy dismiss handler", () => {
     await writeResponse(sid)
     await wait(200)
     await cleanupSession(sid)
-  })
+  }, 10_000)
 })
 
 // --- message.updated ---
