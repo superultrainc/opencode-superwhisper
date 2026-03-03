@@ -83,22 +83,19 @@ export const SuperWhisperPlugin: Plugin = async ({
 
   // --- Logging ---
 
+  const DEBUG = !!process.env.SUPERWHISPER_DEBUG
   const LOG_FILE = `${MESSAGE_DIR}/debug.log`
-  const { appendFileSync } = await import("fs")
+  let appendFileSync: typeof import("fs").appendFileSync | undefined
 
-  try {
-    const internalClient = (client as any)._client
-    const hasPost = !!internalClient?.post
-    appendFileSync(
-      LOG_FILE,
-      `[${new Date().toISOString()}] [info] ${LOG_PREFIX} Plugin initialized, serverUrl=${serverUrl?.toString() ?? "UNDEFINED"}, hasInternalPost=${hasPost}\n`,
-    )
-  } catch {}
+  if (DEBUG) {
+    appendFileSync = (await import("fs")).appendFileSync
+  }
 
   function log(
     level: "debug" | "info" | "warn" | "error",
     message: string,
   ) {
+    if (!DEBUG) return
     client.app.log({
       body: {
         service: "superwhisper",
@@ -107,7 +104,7 @@ export const SuperWhisperPlugin: Plugin = async ({
       },
     })
     try {
-      appendFileSync(
+      appendFileSync?.(
         LOG_FILE,
         `[${new Date().toISOString()}] [${level}] ${message}\n`,
       )

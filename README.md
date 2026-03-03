@@ -68,6 +68,12 @@ bun run dev
 
 Both commands bundle the plugin into a single `.js` file and copy it to `~/.config/opencode/plugin/superwhisper.js`. OpenCode picks it up on next session.
 
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SUPERWHISPER_DEBUG` | unset | Set to `1` to enable debug logging (outputs to OpenCode's log) |
+
 ### Project Structure
 
 ```
