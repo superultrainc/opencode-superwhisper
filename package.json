@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist --target node && tsc --emitDeclarationOnly",
-    "dev": "tsc --watch",
+    "install-local": "bun run build && cp dist/index.js ~/.config/opencode/plugin/superwhisper.js",
+    "dev": "bun build ./src/index.ts --outdir ./dist --target node --watch & while true; do cp dist/index.js ~/.config/opencode/plugin/superwhisper.js 2>/dev/null; sleep 1; done",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "prepublishOnly": "npm run build"

@@ -51,6 +51,30 @@ You speak → OpenCode works → Plugin notifies SuperWhisper → You speak back
 | `permission.asked` | `permission` | Tool needs approval |
 | `question.asked` | `question` | Agent is asking a question |
 
+## Development
+
+```bash
+bun install
+bun test
+bun run typecheck
+```
+
+### Local Testing
+
+Build and install to your local OpenCode plugin folder:
+
+```bash
+bun run install-local
+```
+
+Or watch for changes and auto-install on save:
+
+```bash
+bun run dev
+```
+
+Both commands bundle the plugin into a single `.js` file and copy it to `~/.config/opencode/plugin/superwhisper.js`. OpenCode picks it up on next session.
+
 ### Project Structure
 
 ```
