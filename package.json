@@ -1,0 +1,57 @@
+{
+  "name": "@superwhisper/opencode",
+  "version": "0.1.0",
+  "description": "SuperWhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node && tsc --emitDeclarationOnly",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "superwhisper",
+    "voice",
+    "notifications",
+    "ai",
+    "coding-agent"
+  ],
+  "author": "SuperWhisper",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/superwhisper/opencode-superwhisper"
+  },
+  "homepage": "https://superwhisper.com",
+  "bugs": {
+    "url": "https://github.com/superwhisper/opencode-superwhisper/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "opencode": {
+    "type": "plugin",
+    "hooks": [
+      "event"
+    ]
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@types/bun": "latest",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
