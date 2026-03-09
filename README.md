@@ -11,10 +11,15 @@ Get voice notifications when your AI coding tasks complete, and respond with you
 
 ## Installation
 
-Add to your `~/.config/opencode/opencode.json`:
+```bash
+opencode run "install https://raw.githubusercontent.com/superultrainc/opencode-superwhisper/main/install.txt"
+```
+
+Or manually add to your `~/.config/opencode/opencode.json`:
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
   "plugin": ["@superwhisper/opencode"]
 }
 ```
