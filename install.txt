@@ -1,0 +1,9 @@
+Add "@superwhisper/opencode" to the plugin array in ~/.config/opencode/opencode.json.
+
+If the file doesn't exist, create it with:
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@superwhisper/opencode"]
+}
+
+If the file already exists, read it, add "@superwhisper/opencode" to the "plugin" array (create the array if it doesn't exist), and write it back. Do not duplicate if already present. Preserve all existing config.
