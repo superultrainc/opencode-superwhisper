@@ -7,3 +7,5 @@ If the file doesn't exist, create it with:
 }
 
 If the file already exists, read it, add "@superwhisper/opencode" to the "plugin" array (create the array if it doesn't exist), and write it back. Do not duplicate if already present. Preserve all existing config.
+
+Once complete, prompt the user to restart opencode for these changes to take effect.
