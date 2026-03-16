@@ -81,6 +81,9 @@ export const SuperWhisperPlugin: Plugin = async ({
   // Cache session titles from session.updated events (LLM-generated)
   const sessionTitles = new Map<string, string>()
 
+  // Sessions that are subagents (have a parentID). We never send deeplinks for these.
+  const subagentSessions = new Set<string>()
+
   // --- Logging ---
 
   const DEBUG = !!process.env.SUPERWHISPER_DEBUG
@@ -134,6 +137,10 @@ export const SuperWhisperPlugin: Plugin = async ({
         ? { body, headers: { "Content-Type": "application/json" } }
         : {}),
     })
+  }
+
+  function isSubagent(sessionId: string): boolean {
+    return subagentSessions.has(sessionId)
   }
 
   async function getLastAssistantMessage(
@@ -366,6 +373,11 @@ export const SuperWhisperPlugin: Plugin = async ({
     const sessionId = event.properties?.sessionID
     if (!sessionId) return
 
+    if (isSubagent(sessionId)) {
+      log("debug", `Skipping completed for session=${sessionId} (subagent)`)
+      return
+    }
+
     if (dismissedSessions.has(sessionId)) {
       log("info", `Skipping completed for session=${sessionId} (dismissed)`)
       return
@@ -422,6 +434,10 @@ export const SuperWhisperPlugin: Plugin = async ({
 
   async function handleError(event: any) {
     const sessionId = event.properties?.sessionID || "unknown"
+    if (isSubagent(sessionId)) {
+      log("debug", `Skipping error for session=${sessionId} (subagent)`)
+      return
+    }
     const errorMessage = event.properties?.error || "An error occurred"
 
     const response = await sendNotification({
@@ -440,6 +456,11 @@ export const SuperWhisperPlugin: Plugin = async ({
     const props = event.properties || event
     const sessionId = props.sessionID
     if (!sessionId) return
+
+    if (isSubagent(sessionId)) {
+      log("debug", `Skipping question for session=${sessionId} (subagent)`)
+      return
+    }
 
     const requestId = props.id
     if (!requestId) {
@@ -498,6 +519,12 @@ export const SuperWhisperPlugin: Plugin = async ({
   async function handlePermission(event: any) {
     const props = event.properties || event
     const sessionId = props.sessionID || "unknown"
+
+    if (isSubagent(sessionId)) {
+      log("debug", `Skipping permission for session=${sessionId} (subagent)`)
+      return
+    }
+
     const permissionId = props.id
     const permissionType = props.permission || "unknown"
     const patterns = props.patterns || []
@@ -659,6 +686,11 @@ export const SuperWhisperPlugin: Plugin = async ({
           const props = e.properties || {}
           const sessionId = props.info?.id
           const title = props.info?.title
+          const parentID = props.info?.parentID
+          if (sessionId && parentID) {
+            subagentSessions.add(sessionId)
+            log("debug", `Marked session=${sessionId} as subagent (parent=${parentID})`)
+          }
           if (sessionId && title && typeof title === "string") {
             const isDefault = title.startsWith("New session - ")
             if (!isDefault && sessionTitles.get(sessionId) !== title) {
