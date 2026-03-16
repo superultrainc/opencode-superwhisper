@@ -537,6 +537,17 @@ export const SuperWhisperPlugin: Plugin = async ({
 
     log("info", `Permission requested: id=${permissionId} type=${permissionType}`)
 
+    // Check session-wide bypass — auto-allow without prompting
+    const bypassFile = `${MESSAGE_DIR}/${sessionId}-bypass-perms`
+    try {
+      if (await Bun.file(bypassFile).exists()) {
+        log("info", `Bypass-perms active for session=${sessionId}, auto-allowing ${permissionType}`)
+        repliedPermissionIds.add(permissionId)
+        await replyToPermission(permissionId, "once")
+        return
+      }
+    } catch {}
+
     permissionActiveForSession.add(sessionId)
 
     const responseFile = `${MESSAGE_DIR}/${permissionId}-response.txt`
@@ -551,6 +562,7 @@ export const SuperWhisperPlugin: Plugin = async ({
       suggestions: [
         { label: "Allow", behavior: "allow" },
         { label: "Always Allow", behavior: "always" },
+        { label: "Bypass permissions for this session", behavior: "bypass-perms" },
         { label: "Deny", behavior: "deny" },
       ],
     })
@@ -575,9 +587,21 @@ export const SuperWhisperPlugin: Plugin = async ({
 
     dismissedSessions.delete(sessionId)
     const normalized = normalizePermissionReply(response)
-    log("info", `Replying to permission ${permissionId} with "${normalized}"`)
+
+    // Create bypass file if user chose bypass-perms
+    if (normalized === "bypass") {
+      try {
+        await Bun.write(bypassFile, "")
+        log("info", `Bypass-perms mode enabled for session=${sessionId}`)
+      } catch (err) {
+        log("error", `Failed to write bypass file: ${err}`)
+      }
+    }
+
+    const replyValue = normalized === "bypass" ? "once" : normalized
+    log("info", `Replying to permission ${permissionId} with "${replyValue}"`)
     repliedPermissionIds.add(permissionId)
-    await replyToPermission(permissionId, normalized)
+    await replyToPermission(permissionId, replyValue)
   }
 
   // --- Event router ---

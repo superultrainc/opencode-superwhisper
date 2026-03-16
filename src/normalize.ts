@@ -32,10 +32,22 @@ export function normalizeQuestions(questions: any[]): any[] {
 /**
  * Normalise a raw permission reply string into the enum OpenCode expects.
  */
+/**
+ * Normalise a raw permission reply string into the enum OpenCode expects.
+ * Accepts numeric indices (matching suggestion order), keywords, or full labels.
+ * Suggestion order: 1=Allow, 2=Always Allow, 3=Bypass permissions, 4=Deny
+ */
 export function normalizePermissionReply(
   raw: string,
-): "once" | "always" | "reject" {
+): "once" | "always" | "reject" | "bypass" {
   const s = raw.trim().toLowerCase()
+  // Numeric selection matching suggestion order
+  if (s === "3") return "bypass"
+  if (s === "4") return "reject"
+  if (s === "2") return "always"
+  if (s === "1") return "once"
+  // Keyword/label matching
+  if (s === "bypass" || s.includes("bypass")) return "bypass"
   if (s === "always" || s.includes("always")) return "always"
   if (
     s === "reject" ||
