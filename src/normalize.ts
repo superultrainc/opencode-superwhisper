@@ -1,5 +1,5 @@
 /**
- * Parse a structured question answer response from SuperWhisper.
+ * Parse a structured question answer response from Superwhisper.
  * Expected format: {"answers":[["label1"],["label2","label3"]]}
  * Fallback: treat as comma-separated labels, one answer per question.
  */
@@ -18,7 +18,7 @@ export function parseQuestionResponse(response: string): string[][] {
 }
 
 /**
- * Normalize question data to SuperWhisper's expected format (multiSelect, not multiple).
+ * Normalize question data to Superwhisper's expected format (multiSelect, not multiple).
  */
 export function normalizeQuestions(questions: any[]): any[] {
   return questions.map((q: any) => ({

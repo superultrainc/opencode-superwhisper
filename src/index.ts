@@ -65,17 +65,17 @@ export const SuperWhisperPlugin: Plugin = async ({
   // a new user message arrives. Maps sessionId -> dismiss timestamp.
   const dismissedSessions = new Map<string, number>()
 
-  // Permission IDs that WE replied to (via SuperWhisper), so we don't dismiss
-  // SuperWhisper when the permission.replied event comes back.
+  // Permission IDs that WE replied to (via Superwhisper), so we don't dismiss
+  // Superwhisper when the permission.replied event comes back.
   const repliedPermissionIds = new Set<string>()
 
   // Response file paths for active permission polls, keyed by permissionId.
-  // When OpenCode's UI answers a permission instead of SuperWhisper, we write
+  // When OpenCode's UI answers a permission instead of Superwhisper, we write
   // the response file ourselves to unblock the hanging poll.
   const activePermissionResponseFiles = new Map<string, string>()
 
-  // Sessions where we're about to inject a SuperWhisper response.
-  // message.updated events for these are from SuperWhisper, not direct typing.
+  // Sessions where we're about to inject a Superwhisper response.
+  // message.updated events for these are from Superwhisper, not direct typing.
   const superwhisperInjectedSessions = new Set<string>()
 
   // Cache session titles from session.updated events (LLM-generated)
@@ -217,7 +217,7 @@ export const SuperWhisperPlugin: Plugin = async ({
     } catch (err) {
       log(
         "error",
-        `Failed to open SuperWhisper deeplink. Is SuperWhisper installed? — ${err}`,
+        `Failed to open Superwhisper deeplink. Is Superwhisper installed? — ${err}`,
       )
       return null
     }
@@ -677,7 +677,7 @@ export const SuperWhisperPlugin: Plugin = async ({
           const permissionId = props.requestID || props.id
 
           if (permissionId && repliedPermissionIds.has(permissionId)) {
-            log("info", `Permission ${permissionId} replied (we replied via SuperWhisper)`)
+            log("info", `Permission ${permissionId} replied (we replied via Superwhisper)`)
             repliedPermissionIds.delete(permissionId)
             permissionActiveForSession.delete(sessionId)
             return

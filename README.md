@@ -1,18 +1,18 @@
 # @superwhisper/opencode
 
-SuperWhisper voice integration plugin for [OpenCode](https://opencode.ai).
+Superwhisper voice integration plugin for [OpenCode](https://opencode.ai).
 
 Get voice notifications when your AI coding tasks complete, and respond with your voice. Your voice response is sent back to OpenCode as the next prompt, creating a hands-free coding loop.
 
 ## Requirements
 
 - [OpenCode](https://opencode.ai) v1.0+
-- [SuperWhisper](https://superwhisper.com) app for macOS
+- [Superwhisper](https://superwhisper.com) app for macOS
 
 ## Installation
 
 ```bash
-opencode --prompt "install https://raw.githubusercontent.com/superultrainc/opencode-superwhisper/main/install.txt"
+curl -fsSL https://superwhisper.com/install-opencode.sh | bash
 ```
 
 Or manually add to your `~/.config/opencode/opencode.json`:
@@ -29,20 +29,20 @@ OpenCode will resolve the plugin from npm automatically.
 ## How It Works
 
 ```
-You speak → OpenCode works → Plugin notifies SuperWhisper → You speak back → loop
+You speak → OpenCode works → Plugin notifies Superwhisper → You speak back → loop
 ```
 
 1. **Task completes** → OpenCode fires `session.idle`
 2. **Plugin extracts the response** → fetches the last assistant message
-3. **Plugin notifies SuperWhisper** → writes message to temp file, opens deeplink
-4. **SuperWhisper shows notification** → displays summary with voice recording UI
-5. **You speak your response** → SuperWhisper transcribes and writes to response file
+3. **Plugin notifies Superwhisper** → writes message to temp file, opens deeplink
+4. **Superwhisper shows notification** → displays summary with voice recording UI
+5. **You speak your response** → Superwhisper transcribes and writes to response file
 6. **Plugin reads response** → polls the response file, sends back to OpenCode
 7. **OpenCode continues** → processes your voice input as the next instruction
 
 ## Events
 
-| OpenCode Event | SuperWhisper Status | Description |
+| OpenCode Event | Superwhisper Status | Description |
 |----------------|---------------------|-------------|
 | `session.idle` | `completed` | Task finished |
 | `session.error` | `error` | An error occurred |

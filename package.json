@@ -1,7 +1,7 @@
 {
   "name": "@superwhisper/opencode",
   "version": "0.1.0",
-  "description": "SuperWhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
+  "description": "Superwhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,7 @@
     "ai",
     "coding-agent"
   ],
-  "author": "SuperWhisper",
+  "author": "Superwhisper",
   "license": "MIT",
   "repository": {
     "type": "git",
