@@ -41,11 +41,6 @@ export function normalizePermissionReply(
   raw: string,
 ): "once" | "always" | "reject" | "bypass" {
   const s = raw.trim().toLowerCase()
-  // Numeric selection matching suggestion order
-  if (s === "3") return "bypass"
-  if (s === "4") return "reject"
-  if (s === "2") return "always"
-  if (s === "1") return "once"
   // Keyword/label matching
   if (s === "bypass" || s.includes("bypass")) return "bypass"
   if (s === "always" || s.includes("always")) return "always"
