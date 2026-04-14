@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import { tool } from "@opencode-ai/plugin/tool"
 import { LOG_PREFIX, MESSAGE_DIR, POLL_TIMEOUT_MS, POLL_INTERVAL_MS } from "./types.js"
 import type { DeeplinkParams } from "./types.js"
 import { buildDeeplinkUrl } from "./deeplink.js"
@@ -141,6 +142,14 @@ export const SuperWhisperPlugin: Plugin = async ({
 
   function isSubagent(sessionId: string): boolean {
     return subagentSessions.has(sessionId)
+  }
+
+  async function isSessionDisabled(sessionId: string): Promise<boolean> {
+    try {
+      return await Bun.file(`${MESSAGE_DIR}/disabled-${sessionId}`).exists()
+    } catch {
+      return false
+    }
   }
 
   async function getLastAssistantMessage(
@@ -373,6 +382,11 @@ export const SuperWhisperPlugin: Plugin = async ({
     const sessionId = event.properties?.sessionID
     if (!sessionId) return
 
+    if (await isSessionDisabled(sessionId)) {
+      log("debug", `Skipping completed for session=${sessionId} (disabled)`)
+      return
+    }
+
     if (isSubagent(sessionId)) {
       log("debug", `Skipping completed for session=${sessionId} (subagent)`)
       return
@@ -434,6 +448,10 @@ export const SuperWhisperPlugin: Plugin = async ({
 
   async function handleError(event: any) {
     const sessionId = event.properties?.sessionID || "unknown"
+    if (await isSessionDisabled(sessionId)) {
+      log("debug", `Skipping error for session=${sessionId} (disabled)`)
+      return
+    }
     if (isSubagent(sessionId)) {
       log("debug", `Skipping error for session=${sessionId} (subagent)`)
       return
@@ -456,6 +474,11 @@ export const SuperWhisperPlugin: Plugin = async ({
     const props = event.properties || event
     const sessionId = props.sessionID
     if (!sessionId) return
+
+    if (await isSessionDisabled(sessionId)) {
+      log("debug", `Skipping question for session=${sessionId} (disabled)`)
+      return
+    }
 
     if (isSubagent(sessionId)) {
       log("debug", `Skipping question for session=${sessionId} (subagent)`)
@@ -519,6 +542,11 @@ export const SuperWhisperPlugin: Plugin = async ({
   async function handlePermission(event: any) {
     const props = event.properties || event
     const sessionId = props.sessionID || "unknown"
+
+    if (await isSessionDisabled(sessionId)) {
+      log("debug", `Skipping permission for session=${sessionId} (disabled)`)
+      return
+    }
 
     if (isSubagent(sessionId)) {
       log("debug", `Skipping permission for session=${sessionId} (subagent)`)
@@ -607,6 +635,38 @@ export const SuperWhisperPlugin: Plugin = async ({
   // --- Event router ---
 
   return {
+    tool: {
+      superwhisper_toggle: tool({
+        description:
+          "Enable or disable Superwhisper voice notifications for this session. Use action='disable' when the user wants to turn Superwhisper off, and action='enable' when they want to turn it back on.",
+        args: {
+          action: tool.schema.enum(["enable", "disable"]),
+        },
+        execute: async (args, context: any) => {
+          const sessionId = context.sessionID
+          const flagPath = `${MESSAGE_DIR}/disabled-${sessionId}`
+          if (args.action === "disable") {
+            try {
+              await Bun.write(flagPath, "")
+              log("info", `Superwhisper disabled for session=${sessionId}`)
+              return "Superwhisper voice notifications disabled for this session."
+            } catch (err) {
+              log("error", `Failed to disable Superwhisper: ${err}`)
+              return "Failed to disable Superwhisper."
+            }
+          } else {
+            try {
+              await $`rm -f ${flagPath}`.quiet()
+              log("info", `Superwhisper re-enabled for session=${sessionId}`)
+              return "Superwhisper voice notifications re-enabled for this session."
+            } catch (err) {
+              log("error", `Failed to re-enable Superwhisper: ${err}`)
+              return "Failed to re-enable Superwhisper."
+            }
+          }
+        },
+      }),
+    },
     event: async ({ event }) => {
       // Cast to any — OpenCode's type definitions don't include all event
       // types we handle (permission.asked, question.asked, etc.)

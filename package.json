@@ -38,7 +38,8 @@
   "opencode": {
     "type": "plugin",
     "hooks": [
-      "event"
+      "event",
+      "tool"
     ]
   },
   "files": [
