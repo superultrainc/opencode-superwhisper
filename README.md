@@ -49,6 +49,18 @@ You speak → OpenCode works → Plugin notifies Superwhisper → You speak back
 | `permission.asked` | `permission` | Tool needs approval |
 | `question.asked` | `question` | Agent is asking a question |
 
+## Controlling Superwhisper During a Session
+
+You can ask the agent to enable or disable Superwhisper voice notifications at any time during a session. The plugin exposes a `superwhisper_toggle` tool that the agent will use automatically when instructed.
+
+**Disable Superwhisper for the current session:**
+> "Disable Superwhisper" / "Turn off voice notifications" / "Stop Superwhisper"
+
+**Re-enable Superwhisper for the current session:**
+> "Enable Superwhisper" / "Turn voice notifications back on" / "Re-enable Superwhisper"
+
+The toggle is session-scoped — it only affects the current OpenCode session and resets when you start a new one.
+
 ## Development
 
 ```bash
