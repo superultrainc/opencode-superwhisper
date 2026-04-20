@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs"
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from "./types.js"
 
 export async function pollForResponse(
@@ -11,9 +12,8 @@ export async function pollForResponse(
   while (Date.now() < deadline) {
     if (isCancelled?.()) return null
     try {
-      const file = Bun.file(path)
-      if (await file.exists()) {
-        const text = await file.text()
+      if (existsSync(path)) {
+        const text = readFileSync(path, "utf8")
         if (text && text.trim().length > 0) return text
       }
     } catch {
