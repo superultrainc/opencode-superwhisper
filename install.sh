@@ -2,7 +2,7 @@
 set -e
 
 CONFIG="$HOME/.config/opencode/opencode.json"
-PLUGIN="@superwhisper/opencode"
+PLUGIN="@superwhisper/opencode@latest"
 
 mkdir -p "$(dirname "$CONFIG")"
 
@@ -19,15 +19,22 @@ else:
     config = {"$schema": "https://opencode.ai/config.json"}
 
 plugins = config.get("plugin", [])
-if plugin in plugins:
-    print(f"Superwhisper plugin already installed.")
-    sys.exit(0)
-
-plugins.append(plugin)
-config["plugin"] = plugins
-
-with open(config_path, "w") as f:
-    json.dump(config, f, indent=2)
-
-print("Superwhisper plugin installed. Restart opencode to activate.")
+if plugin not in plugins:
+    plugins.append(plugin)
+    config["plugin"] = plugins
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+    print("Superwhisper plugin installed.")
+else:
+    print("Superwhisper plugin already configured, checking for updates...")
+print("Restart opencode to activate.")
 EOF
+
+OPENCODE_DIR="$HOME/.config/opencode"
+PLUGIN_NAME="@superwhisper/opencode"
+if command -v bun &>/dev/null; then
+    bun pm cache rm "$PLUGIN_NAME" 2>/dev/null || true
+    cd "$OPENCODE_DIR" && bun add "$PLUGIN"
+elif command -v npm &>/dev/null; then
+    npm --prefix "$OPENCODE_DIR" install "$PLUGIN"
+fi
