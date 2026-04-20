@@ -2,7 +2,7 @@
 set -e
 
 CONFIG="$HOME/.config/opencode/opencode.json"
-PLUGIN="@superwhisper/opencode"
+PLUGIN="@superwhisper/opencode@latest"
 
 mkdir -p "$(dirname "$CONFIG")"
 
@@ -31,3 +31,10 @@ with open(config_path, "w") as f:
 
 print("Superwhisper plugin installed. Restart opencode to activate.")
 EOF
+
+OPENCODE_DIR="$HOME/.config/opencode"
+if command -v bun &>/dev/null; then
+    bun --cwd "$OPENCODE_DIR" add "$PLUGIN"
+elif command -v npm &>/dev/null; then
+    npm --prefix "$OPENCODE_DIR" install "$PLUGIN"
+fi
