@@ -1,6 +1,6 @@
 {
   "name": "@superwhisper/opencode",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Superwhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
   "type": "module",
   "main": "dist/index.js",
@@ -8,6 +8,7 @@
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist --target node && tsc --emitDeclarationOnly",
     "install-local": "bun run build && cp dist/index.js ~/.config/opencode/plugin/superwhisper.js",
+    "install-npm-local": "bun run build && cp dist/index.js ~/.cache/opencode/packages/@superwhisper/opencode@latest/node_modules/@superwhisper/opencode/dist/index.js",
     "dev": "bun build ./src/index.ts --outdir ./dist --target node --watch & while true; do cp dist/index.js ~/.config/opencode/plugin/superwhisper.js 2>/dev/null; sleep 1; done",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
