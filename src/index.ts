@@ -1,4 +1,4 @@
-import { existsSync } from "fs"
+import { existsSync, writeFileSync, unlinkSync } from "fs"
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
 import { LOG_PREFIX, MESSAGE_DIR, POLL_TIMEOUT_MS, POLL_INTERVAL_MS } from "./types.js"
@@ -66,6 +66,10 @@ export const SuperWhisperPlugin: Plugin = async ({
   // Sessions the user dismissed (pressed Escape). Don't re-notify until
   // a new user message arrives. Maps sessionId -> dismiss timestamp.
   const dismissedSessions = new Map<string, number>()
+
+  // Sessions explicitly disabled via superwhisper_toggle or SuperWhisper X button.
+  // In-memory backup so disable works even before the filesystem write completes.
+  const disabledSessions = new Set<string>()
 
   // Permission IDs that WE replied to (via Superwhisper), so we don't dismiss
   // Superwhisper when the permission.replied event comes back.
@@ -146,7 +150,29 @@ export const SuperWhisperPlugin: Plugin = async ({
   }
 
   function isSessionDisabled(sessionId: string): boolean {
+    if (disabledSessions.has(sessionId)) return true
     return existsSync(`${MESSAGE_DIR}/disabled-${sessionId}`)
+  }
+
+  function disableSession(sessionId: string): void {
+    disabledSessions.add(sessionId)
+    try {
+      writeFileSync(`${MESSAGE_DIR}/disabled-${sessionId}`, "")
+    } catch (err) {
+      log("error", `Failed to write disabled flag for session=${sessionId}: ${err}`)
+    }
+  }
+
+  function enableSession(sessionId: string): void {
+    disabledSessions.delete(sessionId)
+    try {
+      const flagPath = `${MESSAGE_DIR}/disabled-${sessionId}`
+      if (existsSync(flagPath)) {
+        unlinkSync(flagPath)
+      }
+    } catch (err) {
+      log("error", `Failed to remove disabled flag for session=${sessionId}: ${err}`)
+    }
   }
 
   async function getLastAssistantMessage(
@@ -182,20 +208,19 @@ export const SuperWhisperPlugin: Plugin = async ({
     const responseFile = `${MESSAGE_DIR}/${pollKey}-response.txt`
 
     try {
-      await Bun.write(messageFile, messageContent)
+      writeFileSync(messageFile, messageContent)
     } catch (err) {
       log("error", `Failed to write message file: ${messageFile} — ${err}`)
       return null
     }
 
     // Remove any stale response file
-    try {
-      const rf = Bun.file(responseFile)
-      if (await rf.exists()) {
-        log("info", `Removing stale response file for session=${sessionId}`)
-        await $`rm ${responseFile}`.quiet()
-      }
-    } catch {}
+    if (existsSync(responseFile)) {
+      log("info", `Removing stale response file for session=${sessionId}`)
+      try {
+        unlinkSync(responseFile)
+      } catch {}
+    }
 
     const branch = await getGitBranch()
     const projectName = directory.split("/").pop() || project?.id || ""
@@ -564,14 +589,12 @@ export const SuperWhisperPlugin: Plugin = async ({
 
     // Check session-wide bypass — auto-allow without prompting
     const bypassFile = `${MESSAGE_DIR}/${sessionId}-bypass-perms`
-    try {
-      if (await Bun.file(bypassFile).exists()) {
-        log("info", `Bypass-perms active for session=${sessionId}, auto-allowing ${permissionType}`)
-        repliedPermissionIds.add(permissionId)
-        await replyToPermission(permissionId, "once")
-        return
-      }
-    } catch {}
+    if (existsSync(bypassFile)) {
+      log("info", `Bypass-perms active for session=${sessionId}, auto-allowing ${permissionType}`)
+      repliedPermissionIds.add(permissionId)
+      await replyToPermission(permissionId, "once")
+      return
+    }
 
     permissionActiveForSession.add(sessionId)
 
@@ -616,7 +639,7 @@ export const SuperWhisperPlugin: Plugin = async ({
     // Create bypass file if user chose bypass-perms
     if (normalized === "bypass") {
       try {
-        await Bun.write(bypassFile, "")
+        writeFileSync(bypassFile, "")
         log("info", `Bypass-perms mode enabled for session=${sessionId}`)
       } catch (err) {
         log("error", `Failed to write bypass file: ${err}`)
@@ -641,25 +664,14 @@ export const SuperWhisperPlugin: Plugin = async ({
         },
         execute: async (args, context: any) => {
           const sessionId = context.sessionID
-          const flagPath = `${MESSAGE_DIR}/disabled-${sessionId}`
           if (args.action === "disable") {
-            try {
-              await Bun.write(flagPath, "")
-              log("info", `Superwhisper disabled for session=${sessionId}`)
-              return "Superwhisper voice notifications disabled for this session."
-            } catch (err) {
-              log("error", `Failed to disable Superwhisper: ${err}`)
-              return "Failed to disable Superwhisper."
-            }
+            disableSession(sessionId)
+            log("info", `Superwhisper disabled for session=${sessionId}`)
+            return "Superwhisper voice notifications disabled for this session."
           } else {
-            try {
-              await $`rm -f ${flagPath}`.quiet()
-              log("info", `Superwhisper re-enabled for session=${sessionId}`)
-              return "Superwhisper voice notifications re-enabled for this session."
-            } catch (err) {
-              log("error", `Failed to re-enable Superwhisper: ${err}`)
-              return "Failed to re-enable Superwhisper."
-            }
+            enableSession(sessionId)
+            log("info", `Superwhisper re-enabled for session=${sessionId}`)
+            return "Superwhisper voice notifications re-enabled for this session."
           }
         },
       }),
@@ -749,7 +761,7 @@ export const SuperWhisperPlugin: Plugin = async ({
             const reply = (props.reply as string) || "allow"
             log("info", `Permission ${permissionId} answered via OpenCode UI (reply=${reply})`)
             try {
-              await Bun.write(respFile, reply)
+              writeFileSync(respFile, reply)
             } catch (err) {
               log("warn", `Failed to write unblock response for ${permissionId}: ${err}`)
             }
