@@ -38,3 +38,11 @@ if command -v bun &>/dev/null; then
 elif command -v npm &>/dev/null; then
     npm --prefix "$OPENCODE_DIR" install "$PLUGIN"
 fi
+
+# Also sync to opencode's own plugin cache if it exists
+OPENCODE_CACHE="$HOME/.cache/opencode/packages/@superwhisper/opencode@latest/node_modules/@superwhisper/opencode"
+CONFIG_INSTALL="$HOME/.config/opencode/node_modules/@superwhisper/opencode"
+if [ -d "$OPENCODE_CACHE" ] && [ -f "$CONFIG_INSTALL/dist/index.js" ]; then
+    cp "$CONFIG_INSTALL/dist/index.js" "$OPENCODE_CACHE/dist/index.js"
+    cp "$CONFIG_INSTALL/package.json" "$OPENCODE_CACHE/package.json"
+fi
