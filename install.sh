@@ -46,3 +46,5 @@ if [ -d "$OPENCODE_CACHE" ] && [ -f "$CONFIG_INSTALL/dist/index.js" ]; then
     cp "$CONFIG_INSTALL/dist/index.js" "$OPENCODE_CACHE/dist/index.js"
     cp "$CONFIG_INSTALL/package.json" "$OPENCODE_CACHE/package.json"
 fi
+
+open "superwhisper://agent-installed?agent=opencode"
