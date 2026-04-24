@@ -4,6 +4,7 @@ import { tool } from "@opencode-ai/plugin/tool"
 import { LOG_PREFIX, MESSAGE_DIR, POLL_TIMEOUT_MS, POLL_INTERVAL_MS } from "./types.js"
 import type { DeeplinkParams } from "./types.js"
 import { buildDeeplinkUrl } from "./deeplink.js"
+import { deliverAgentPayload } from "./inbox.js"
 import { extractFullText, isEndTurn, extractSummary } from "./message.js"
 import { pollForResponse } from "./poll.js"
 import {
@@ -230,25 +231,29 @@ export const SuperWhisperPlugin: Plugin = async ({
       log("info", `Using cached session title for ${sessionId}: "${title}"`)
     }
 
-    const url = buildDeeplinkUrl(scheme, {
-      agent: "opencode",
-      status,
-      sessionId,
-      summary,
-      messageFile,
-      responseFile,
-      cwd: directory,
-      project: projectName,
-      branch,
-      title,
-    })
-
     try {
-      await $`open ${url}`
+      await deliverAgentPayload(
+        {
+          kind: "update",
+          agent: "opencode",
+          status,
+          sessionId,
+          summary,
+          messageFile,
+          responseFile,
+          cwd: directory,
+          project: projectName,
+          branch,
+          title,
+          hookPid: process.pid,
+        },
+        scheme,
+        $,
+      )
     } catch (err) {
       log(
         "error",
-        `Failed to open Superwhisper deeplink. Is Superwhisper installed? — ${err}`,
+        `Failed to deliver Superwhisper payload. Is Superwhisper installed? — ${err}`,
       )
       return null
     }
@@ -357,11 +362,12 @@ export const SuperWhisperPlugin: Plugin = async ({
   // --- Dismiss helpers ---
 
   function sendDismiss(sessionId: string, source: string) {
-    const dismissUrl = `${scheme}://agent-dismiss?sessionId=${encodeURIComponent(sessionId)}`
-    log("debug", `Sending dismiss deeplink (${source}): ${dismissUrl}`)
-    $`open -g ${dismissUrl}`.quiet().catch((err: any) => {
-      log("error", `Failed to send dismiss deeplink for session=${sessionId}: ${err}`)
-    })
+    log("debug", `Sending dismiss via inbox (${source}) for session=${sessionId}`)
+    deliverAgentPayload({ kind: "dismiss", sessionId }, scheme, $).catch(
+      (err: any) => {
+        log("error", `Failed to send dismiss for session=${sessionId}: ${err}`)
+      },
+    )
   }
 
   function cancelPoll(pollKey: string, source: string): boolean {
