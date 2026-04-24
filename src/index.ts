@@ -465,6 +465,7 @@ export const SuperWhisperPlugin: Plugin = async ({
       await sendResponseToOpenCode(sessionId, response)
     } else {
       log("info", `Poll timed out for session=${sessionId} — will re-notify on next idle`)
+      sendDismiss(sessionId, "completed-timeout")
     }
   }
 
@@ -489,6 +490,8 @@ export const SuperWhisperPlugin: Plugin = async ({
 
     if (response) {
       await sendResponseToOpenCode(sessionId, response)
+    } else {
+      sendDismiss(sessionId, "error-timeout")
     }
   }
 
@@ -630,6 +633,7 @@ export const SuperWhisperPlugin: Plugin = async ({
 
     if (!response) {
       log("info", `Poll timed out for permission ${permissionId}`)
+      sendDismiss(sessionId, `permission-timeout(${permissionId})`)
       return
     }
 
