@@ -8,12 +8,12 @@ import {
   SuperWhisperPlugin,
 } from "./index.js"
 import type { DeeplinkParams } from "./index.js"
-import type { InboxPayload } from "./inbox.js"
+import { __setInboxDirForTest, type InboxPayload } from "./inbox.js"
 import { unlink, mkdir, readdir, readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 
 const TEST_INBOX_DIR = "/tmp/superwhisper-test-inbox"
-process.env.SUPERWHISPER_INBOX_DIR = TEST_INBOX_DIR
+__setInboxDirForTest(TEST_INBOX_DIR)
 
 async function clearInbox() {
   try {

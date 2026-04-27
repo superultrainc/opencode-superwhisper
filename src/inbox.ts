@@ -20,26 +20,25 @@ export interface InboxPayload {
   hookPid?: number
 }
 
-export function getInboxDir(): string {
-  const override = process.env.SUPERWHISPER_INBOX_DIR
-  if (override) return override
-  return join(
-    homedir(),
-    "Library/Application Support/superwhisper/agent/inbox",
-  )
+let INBOX_DIR = join(
+  homedir(),
+  "Library/Application Support/superwhisper/agent/inbox",
+)
+
+export function __setInboxDirForTest(dir: string): void {
+  INBOX_DIR = dir
 }
 
 export function writeInboxPayload(payload: InboxPayload): boolean {
-  const dir = getInboxDir()
   try {
-    mkdirSync(dir, { recursive: true })
+    mkdirSync(INBOX_DIR, { recursive: true })
   } catch {
     return false
   }
 
   const base = randomUUID()
-  const tmpPath = join(dir, `${base}.json.tmp`)
-  const finalPath = join(dir, `${base}.json`)
+  const tmpPath = join(INBOX_DIR, `${base}.json.tmp`)
+  const finalPath = join(INBOX_DIR, `${base}.json`)
 
   try {
     writeFileSync(tmpPath, JSON.stringify(payload))
