@@ -8,7 +8,53 @@ import {
   SuperWhisperPlugin,
 } from "./index.js"
 import type { DeeplinkParams } from "./index.js"
-import { unlink, mkdir } from "node:fs/promises"
+import { __setInboxDirForTest, type InboxPayload } from "./inbox.js"
+import { unlink, mkdir, readdir, readFile, rm } from "node:fs/promises"
+import { join } from "node:path"
+
+const TEST_INBOX_DIR = "/tmp/superwhisper-test-inbox"
+__setInboxDirForTest(TEST_INBOX_DIR)
+
+async function clearInbox() {
+  try {
+    await rm(TEST_INBOX_DIR, { recursive: true, force: true })
+  } catch {}
+}
+
+async function listInboxPayloads(): Promise<InboxPayload[]> {
+  let entries: string[]
+  try {
+    entries = await readdir(TEST_INBOX_DIR)
+  } catch {
+    return []
+  }
+  const payloads: InboxPayload[] = []
+  for (const name of entries) {
+    if (!name.endsWith(".json")) continue
+    try {
+      const text = await readFile(join(TEST_INBOX_DIR, name), "utf8")
+      payloads.push(JSON.parse(text) as InboxPayload)
+    } catch {}
+  }
+  return payloads
+}
+
+async function hasInboxPayload(
+  sessionId: string,
+  kind: "update" | "dismiss",
+): Promise<boolean> {
+  const payloads = await listInboxPayloads()
+  return payloads.some((p) => p.kind === kind && p.sessionId === sessionId)
+}
+
+async function countInboxPayloads(
+  sessionId: string,
+  kind: "update" | "dismiss",
+): Promise<number> {
+  const payloads = await listInboxPayloads()
+  return payloads.filter((p) => p.kind === kind && p.sessionId === sessionId)
+    .length
+}
 
 // --- extractFullText ---
 
@@ -423,21 +469,18 @@ async function writeResponse(
   await Bun.write(`${MESSAGE_DIR}/${sessionId}-response.txt`, text)
 }
 
-function hasDismissCmd(cmds: string[], sessionId: string): boolean {
-  return cmds.some(
-    (c) => c.includes("agent-dismiss") && c.includes(sessionId),
-  )
-}
-
-function hasDeeplinkCmd(cmds: string[], sessionId: string): boolean {
-  return cmds.some(
-    (c) => c.includes("agent-update") && c.includes(sessionId),
-  )
-}
 
 // --- Plugin basic ---
 
 describe("SuperWhisperPlugin", () => {
+  beforeEach(async () => {
+    await clearInbox()
+  })
+
+  afterEach(async () => {
+    await clearInbox()
+  })
+
   it("initializes without error", async () => {
     const { plugin } = await initPlugin()
     expect(plugin).toBeDefined()
@@ -475,7 +518,7 @@ describe("session.idle → handleCompleted", () => {
 
   it("skips when last assistant message is empty", async () => {
     const sid = "idle-empty-msg"
-    const { plugin, shellCommands } = await initPlugin({
+    const { plugin } = await initPlugin({
       messages: [
         makeUserMessage(),
         { info: { role: "assistant" }, parts: [] },
@@ -485,12 +528,12 @@ describe("session.idle → handleCompleted", () => {
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(200)
-    expect(hasDeeplinkCmd(shellCommands, sid)).toBe(false)
+    expect(await hasInboxPayload(sid, "update")).toBe(false)
   })
 
   it("skips when isEndTurn is false", async () => {
     const sid = "idle-tool-calls"
-    const { plugin, shellCommands } = await initPlugin({
+    const { plugin } = await initPlugin({
       messages: [
         makeUserMessage(),
         makeAssistantMessage("Running tools...", "tool-calls"),
@@ -500,24 +543,25 @@ describe("session.idle → handleCompleted", () => {
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(200)
-    expect(hasDeeplinkCmd(shellCommands, sid)).toBe(false)
+    expect(await hasInboxPayload(sid, "update")).toBe(false)
     await cleanupSession(sid)
   })
 
-  it("sends deeplink when message has content and isEndTurn", async () => {
-    const sid = "idle-sends-deeplink"
-    const { plugin, shellCommands } = await initPlugin()
+  it("writes inbox payload when message has content and isEndTurn", async () => {
+    const sid = "idle-sends-payload"
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(300)
 
-    expect(hasDeeplinkCmd(shellCommands, sid)).toBe(true)
-    const deeplinkCmd = shellCommands.find(
-      (c) => c.includes("agent-update") && c.includes(sid),
-    )!
-    expect(deeplinkCmd).toContain("status=completed")
-    expect(deeplinkCmd).toContain("agent=opencode")
+    const payloads = await listInboxPayloads()
+    const updatePayload = payloads.find(
+      (p) => p.kind === "update" && p.sessionId === sid,
+    )
+    expect(updatePayload).toBeDefined()
+    expect(updatePayload?.status).toBe("completed")
+    expect(updatePayload?.agent).toBe("opencode")
 
     await writeResponse(sid)
     await wait(200)
@@ -526,14 +570,14 @@ describe("session.idle → handleCompleted", () => {
 
   it("skips when no assistant messages exist", async () => {
     const sid = "idle-no-assistant"
-    const { plugin, shellCommands } = await initPlugin({
+    const { plugin } = await initPlugin({
       messages: [makeUserMessage()],
     })
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(200)
-    expect(hasDeeplinkCmd(shellCommands, sid)).toBe(false)
+    expect(await hasInboxPayload(sid, "update")).toBe(false)
   })
 
   it("sends response back to OpenCode when user responds", async () => {
@@ -559,18 +603,27 @@ describe("session.idle → handleCompleted", () => {
 // --- session.busy dismiss handler ---
 
 describe("session.busy dismiss handler", () => {
+  beforeEach(async () => {
+    await clearInbox()
+  })
+
+  afterEach(async () => {
+    await clearInbox()
+  })
+
   it("does NOT dismiss when no activePolls entry", async () => {
     const sid = "busy-no-poll"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
     } as any)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(false)
+    await wait(50)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(false)
   })
 
-  it("sends dismiss deeplink when activePolls has the session", async () => {
+  it("writes dismiss payload when activePolls has the session", async () => {
     const sid = "busy-with-poll"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
@@ -579,14 +632,15 @@ describe("session.busy dismiss handler", () => {
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
     } as any)
+    await wait(100)
 
-    expect(hasDismissCmd(shellCommands, sid)).toBe(true)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(true)
     await cleanupSession(sid)
   })
 
   it("cancels the poll when dismissing", async () => {
     const sid = "busy-cancels-poll"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
@@ -595,20 +649,22 @@ describe("session.busy dismiss handler", () => {
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
     } as any)
+    await wait(100)
 
-    const cmdsBefore = shellCommands.filter((c) => c.includes("agent-dismiss"))
+    const dismissBefore = await countInboxPayloads(sid, "dismiss")
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
     } as any)
-    const cmdsAfter = shellCommands.filter((c) => c.includes("agent-dismiss"))
+    await wait(100)
+    const dismissAfter = await countInboxPayloads(sid, "dismiss")
 
-    expect(cmdsAfter.length).toBe(cmdsBefore.length)
+    expect(dismissAfter).toBe(dismissBefore)
     await cleanupSession(sid)
   })
 
   it("does NOT dismiss for superwhisperInjectedSessions", async () => {
     const sid = "busy-injected"
-    const { plugin, shellCommands, mockClient } = await initPlugin()
+    const { plugin, mockClient } = await initPlugin()
 
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
@@ -625,17 +681,14 @@ describe("session.busy dismiss handler", () => {
     } as any)
     await wait(300)
 
-    const dismissBefore = shellCommands.filter((c) =>
-      c.includes("agent-dismiss"),
-    ).length
+    const dismissBefore = await countInboxPayloads(sid, "dismiss")
 
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
     } as any)
+    await wait(100)
 
-    const dismissAfter = shellCommands.filter((c) =>
-      c.includes("agent-dismiss"),
-    ).length
+    const dismissAfter = await countInboxPayloads(sid, "dismiss")
     expect(dismissAfter).toBe(dismissBefore)
 
     await writeResponse(sid)
@@ -647,52 +700,62 @@ describe("session.busy dismiss handler", () => {
 // --- message.updated ---
 
 describe("message.updated handler", () => {
+  beforeEach(async () => {
+    await clearInbox()
+  })
+
+  afterEach(async () => {
+    await clearInbox()
+  })
+
   it("clears dismissedSessions for user messages", async () => {
     const sid = "msg-updated-clears"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "message.updated",
         properties: { info: { sessionID: sid, role: "user" } },
       },
     } as any)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(false)
+    await wait(50)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(false)
   })
 
   it("does nothing for non-user messages", async () => {
     const sid = "msg-updated-assistant"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "message.updated",
         properties: { info: { sessionID: sid, role: "assistant" } },
       },
     } as any)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(false)
+    await wait(50)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(false)
   })
 
   it("does nothing when no sessionId", async () => {
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "message.updated",
         properties: { info: { role: "user" } },
       },
     } as any)
-    expect(
-      shellCommands.filter((c) => c.includes("agent-dismiss")).length,
-    ).toBe(0)
+    await wait(50)
+    const payloads = await listInboxPayloads()
+    expect(payloads.filter((p) => p.kind === "dismiss").length).toBe(0)
   })
 
   it("clears dismissed state so next idle can re-notify", async () => {
     const sid = "msg-updated-reidle"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
 
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(300)
-    expect(hasDeeplinkCmd(shellCommands, sid)).toBe(true)
+    expect(await hasInboxPayload(sid, "update")).toBe(true)
 
     await plugin.event?.({
       event: { type: "session.busy", properties: { sessionID: sid } },
@@ -706,18 +769,14 @@ describe("message.updated handler", () => {
       },
     } as any)
 
-    const deeplinksBefore = shellCommands.filter(
-      (c) => c.includes("agent-update") && c.includes(sid),
-    ).length
+    const updatesBefore = await countInboxPayloads(sid, "update")
     await plugin.event?.({
       event: { type: "session.idle", properties: { sessionID: sid } },
     } as any)
     await wait(300)
 
-    const deeplinksAfter = shellCommands.filter(
-      (c) => c.includes("agent-update") && c.includes(sid),
-    ).length
-    expect(deeplinksAfter).toBeGreaterThan(deeplinksBefore)
+    const updatesAfter = await countInboxPayloads(sid, "update")
+    expect(updatesAfter).toBeGreaterThan(updatesBefore)
 
     await writeResponse(sid)
     await wait(200)
@@ -728,48 +787,66 @@ describe("message.updated handler", () => {
 // --- question.answered / question.rejected ---
 
 describe("question.answered / question.rejected dismiss", () => {
-  it("sends dismiss deeplink on question.answered", async () => {
+  beforeEach(async () => {
+    await clearInbox()
+  })
+
+  afterEach(async () => {
+    await clearInbox()
+  })
+
+  it("writes dismiss payload on question.answered", async () => {
     const sid = "q-answered"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "question.answered",
         properties: { sessionID: sid },
       },
     } as any)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(true)
+    await wait(50)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(true)
   })
 
-  it("sends dismiss deeplink on question.rejected", async () => {
+  it("writes dismiss payload on question.rejected", async () => {
     const sid = "q-rejected"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "question.rejected",
         properties: { sessionID: sid },
       },
     } as any)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(true)
+    await wait(50)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(true)
   })
 
   it("does nothing when no sessionId", async () => {
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: { type: "question.answered", properties: {} },
     } as any)
-    expect(
-      shellCommands.filter((c) => c.includes("agent-dismiss")).length,
-    ).toBe(0)
+    await wait(50)
+    const payloads = await listInboxPayloads()
+    expect(payloads.filter((p) => p.kind === "dismiss").length).toBe(0)
   })
 })
 
 // --- permission.replied handler ---
 
 describe("permission.replied handler", () => {
-  it("sends dismiss when answered via OpenCode UI", async () => {
+  beforeEach(async () => {
+    await clearInbox()
+  })
+
+  afterEach(async () => {
+    await clearInbox()
+  })
+
+  it("writes dismiss payload when answered via OpenCode UI", async () => {
     const sid = "perm-replied-ui"
     const permId = "perm-ui-001"
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "permission.replied",
@@ -781,11 +858,11 @@ describe("permission.replied handler", () => {
       },
     } as any)
     await wait(100)
-    expect(hasDismissCmd(shellCommands, sid)).toBe(true)
+    expect(await hasInboxPayload(sid, "dismiss")).toBe(true)
   })
 
   it("does not dismiss when sessionId is unknown", async () => {
-    const { plugin, shellCommands } = await initPlugin()
+    const { plugin } = await initPlugin()
     await plugin.event?.({
       event: {
         type: "permission.replied",
@@ -796,8 +873,7 @@ describe("permission.replied handler", () => {
       },
     } as any)
     await wait(100)
-    expect(
-      shellCommands.filter((c) => c.includes("agent-dismiss")).length,
-    ).toBe(0)
+    const payloads = await listInboxPayloads()
+    expect(payloads.filter((p) => p.kind === "dismiss").length).toBe(0)
   })
 })
