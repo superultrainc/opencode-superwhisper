@@ -6,6 +6,6 @@ if ! command -v opencode &>/dev/null; then
     exit 1
 fi
 
-opencode plugin -g -f @superwhisper/opencode
+opencode plugin -g -f @superwhisper/opencode </dev/null
 
 open "superwhisper://agent-installed?agent=opencode"
