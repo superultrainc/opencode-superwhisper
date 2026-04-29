@@ -10,10 +10,16 @@ import {
 import type { DeeplinkParams } from "./index.js"
 import { __setInboxDirForTest, type InboxPayload } from "./inbox.js"
 import { unlink, mkdir, readdir, readFile, rm } from "node:fs/promises"
+import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 
 const TEST_INBOX_DIR = "/tmp/superwhisper-test-inbox"
 __setInboxDirForTest(TEST_INBOX_DIR)
+
+// The plugin uses `$\`mkdir -p ...\`` to create its working dir at init.
+// Tests mock `$`, so the command never runs — create the dir directly here
+// so writeFileSync calls inside the plugin succeed on a clean runner.
+mkdirSync("/tmp/superwhisper-agent", { recursive: true })
 
 async function clearInbox() {
   try {
