@@ -1,6 +1,6 @@
 {
   "name": "@superwhisper/opencode",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Superwhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
   "type": "module",
   "main": "dist/index.js",
@@ -43,6 +43,9 @@
       "tool"
     ]
   },
+  "oc-plugin": [
+    "server"
+  ],
   "files": [
     "dist"
   ],
