@@ -6,7 +6,7 @@ Get voice notifications when your AI coding tasks complete, and respond with you
 
 ## Requirements
 
-- [OpenCode](https://opencode.ai) v1.0+
+- [OpenCode](https://opencode.ai) 1.x, or the OpenCode 2 preview (`opencode2`)
 - [Superwhisper](https://superwhisper.com) app for macOS
 
 ## Installation
@@ -15,16 +15,22 @@ Get voice notifications when your AI coding tasks complete, and respond with you
 curl -fsSL https://superwhisper.com/install-opencode.sh | bash
 ```
 
-Or manually add to your `~/.config/opencode/opencode.json`:
+The script registers the plugin with every OpenCode CLI it finds:
+
+| CLI | Command it runs |
+|-----|-----------------|
+| OpenCode 1.3.4+ | `opencode plugin -g -f @superwhisper/opencode` |
+| OpenCode 1.0–1.3.3 | adds the plugin to `plugin` in `~/.config/opencode/opencode.json` |
+| OpenCode 2 (`opencode2`, `@opencode-ai/cli`) | `opencode2 plugin add @superwhisper/opencode` |
+
+Or add it to `~/.config/opencode/opencode.json` yourself. OpenCode 1.x reads `plugin`, OpenCode 2 reads `plugins`:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@superwhisper/opencode"]
+  "plugin": ["@superwhisper/opencode"],
+  "plugins": ["@superwhisper/opencode"]
 }
 ```
-
-OpenCode will resolve the plugin from npm automatically.
 
 ## How It Works
 
@@ -32,22 +38,33 @@ OpenCode will resolve the plugin from npm automatically.
 You speak → OpenCode works → Plugin notifies Superwhisper → You speak back → loop
 ```
 
-1. **Task completes** → OpenCode fires `session.idle`
+1. **Task completes** → OpenCode reports the turn finished
 2. **Plugin extracts the response** → fetches the last assistant message
-3. **Plugin notifies Superwhisper** → writes message to temp file, opens deeplink
+3. **Plugin notifies Superwhisper** → writes the message to a temp file and a payload to Superwhisper's inbox
 4. **Superwhisper shows notification** → displays summary with voice recording UI
 5. **You speak your response** → Superwhisper transcribes and writes to response file
 6. **Plugin reads response** → polls the response file, sends back to OpenCode
 7. **OpenCode continues** → processes your voice input as the next instruction
 
+## OpenCode 1 and 2
+
+One package serves both plugin APIs:
+
+- `@superwhisper/opencode` (package root) default-exports the 1.x plugin function. OpenCode 1.0–1.2 calls every root export as a plugin, so the root exports nothing else.
+- `@superwhisper/opencode/server` default-exports `{ id, server, setup }`. OpenCode 1.3+ loads `./server` and calls `server`; OpenCode 2 calls `setup`.
+
+Both adapters map their events into the same engine (`src/engine.ts`), so Superwhisper sees the same payloads either way.
+
 ## Events
 
-| OpenCode Event | Superwhisper Status | Description |
-|----------------|---------------------|-------------|
-| `session.idle` | `completed` | Task finished |
-| `session.error` | `error` | An error occurred |
-| `permission.asked` | `permission` | Tool needs approval |
-| `question.asked` | `question` | Agent is asking a question |
+| Superwhisper status | OpenCode 1.x | OpenCode 2 |
+|---------------------|--------------|------------|
+| `completed` | `session.idle` | `session.execution.succeeded` |
+| `error` | `session.error` | `session.execution.failed` |
+| `permission` | `permission.asked` (1.0: `permission.updated`) | `permission.asked` |
+| `question` | `question.asked` | `form.created` (forms where every field has options) |
+
+OpenCode 2 has no plugin API for answering forms, so the plugin answers them over the local service's HTTP API. It reads the URL and password from `~/.local/state/opencode/service.json`, and only when that file's `pid` matches the plugin's own process. Forms with free-text, number or conditional fields stay in the OpenCode UI.
 
 ## Controlling Superwhisper During a Session
 
@@ -83,7 +100,7 @@ Or watch for changes and auto-install on save:
 bun run dev
 ```
 
-Both commands bundle the plugin into a single `.js` file and copy it to `~/.config/opencode/plugin/superwhisper.js`. OpenCode picks it up on next session.
+Both commands bundle the plugin and copy `dist/server.js` to `~/.config/opencode/plugin/superwhisper.js` (OpenCode 1.3+). OpenCode picks it up on next session. For OpenCode 2, point `plugins` at a directory containing a `server.js` that re-exports `dist/server.js`.
 
 ### Environment Variables
 
@@ -95,13 +112,18 @@ Both commands bundle the plugin into a single `.js` file and copy it to `~/.conf
 
 ```
 src/
-  index.ts        # Plugin entry point and event handlers
-  types.ts        # Types, interfaces, constants
-  deeplink.ts     # Deeplink URL building
+  index.ts        # Package root: OpenCode 1.x plugin function
+  server.ts       # ./server: { id, server, setup } for OpenCode 1.3+ and 2
+  v1.ts           # OpenCode 1.x adapter (hooks, event mapping, replies)
+  v2.ts           # OpenCode 2 adapter (setup, event mapping, forms)
+  engine.ts       # Version-independent notification/poll state machine
+  inbox.ts        # Superwhisper file inbox delivery
+  system.ts       # pgrep/open/git via child_process
+  types.ts        # Engine events, Host interface, constants
   message.ts      # Message extraction and summary
   poll.ts         # Response file polling
   normalize.ts    # Question/permission response normalization
-  index.test.ts   # Tests
+  *.test.ts       # Tests
 ```
 
 ## License
