@@ -24,14 +24,11 @@ export function normalizeQuestions(questions: any[]): any[] {
   return questions.map((q: any) => ({
     question: q.question,
     header: q.header,
-    options: q.options,
+    options: q.options ?? [],
     multiSelect: q.multiSelect ?? q.multiple ?? false,
   }))
 }
 
-/**
- * Normalise a raw permission reply string into the enum OpenCode expects.
- */
 /**
  * Normalise a raw permission reply string into the enum OpenCode expects.
  * Accepts numeric indices (matching suggestion order), keywords, or full labels.
