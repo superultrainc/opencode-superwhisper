@@ -126,35 +126,6 @@ src/
   *.test.ts       # Tests
 ```
 
-## Publishing releases
-
-Publishing a GitHub release triggers `.github/workflows/publish.yml`, which publishes
-`@superwhisper/opencode` to npm using GitHub OIDC. No local `npm publish` or npm token
-is needed.
-
-One-time setup in the package's [npm settings](https://www.npmjs.com/package/@superwhisper/opencode/access):
-add a GitHub Actions trusted publisher with organization **superultrainc**, repository
-**opencode-superwhisper**, and workflow filename **publish.yml** (filename only).
-Leave the environment name empty, since this workflow does not use a GitHub environment,
-and allow direct publishing with `npm publish`.
-
-For each release, commit the new `package.json` version to `main`, then publish a GitHub
-release with a matching tag, such as `v1.1.0`. The tag must point to a commit containing
-that version and the correct repository URL. The workflow verifies these identities,
-installs locked dependencies, runs the existing checks, builds, and publishes.
-
-If publication fails, fix the reported issue and use **Actions → Publish to npm → Run
-workflow** on `main`, entering the existing release tag. This retries the tagged source
-with the current workflow. npm versions are immutable; retry only if that version has
-not already been published. A tag containing incorrect package metadata needs a new
-release from a corrected commit.
-
-Trusted publisher configurations must complete their first successful publish within
-two days of creation. If an unused configuration has expired, recreate it in npm before
-publishing. Authentication failures also require checking that the owner, repository,
-and workflow filename match exactly; workflow OIDC permissions alone do not grant npm
-publishing access.
-
 ## License
 
 MIT
