@@ -1,15 +1,26 @@
 {
   "name": "@superwhisper/opencode",
-  "version": "1.0.8",
-  "description": "Superwhisper voice integration plugin for OpenCode - get voice notifications when tasks complete",
+  "version": "1.1.0",
+  "description": "Superwhisper voice integration plugin for OpenCode 1.x and 2.x - get voice notifications when tasks complete",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node && tsc --emitDeclarationOnly",
-    "install-local": "bun run build && cp dist/index.js ~/.config/opencode/plugin/superwhisper.js",
-    "install-npm-local": "bun run build && cp dist/index.js ~/.cache/opencode/packages/@superwhisper/opencode@latest/node_modules/@superwhisper/opencode/dist/index.js",
-    "dev": "bun build ./src/index.ts --outdir ./dist --target node --watch & while true; do cp dist/index.js ~/.config/opencode/plugin/superwhisper.js 2>/dev/null; sleep 1; done",
+    "build": "bun build ./src/index.ts ./src/server.ts --outdir ./dist --target node && tsc --emitDeclarationOnly",
+    "install-local": "bun run build && cp dist/server.js ~/.config/opencode/plugin/superwhisper.js",
+    "install-npm-local": "bun run build && cp dist/index.js dist/server.js ~/.cache/opencode/packages/@superwhisper/opencode@latest/node_modules/@superwhisper/opencode/dist/",
+    "dev": "bun build ./src/index.ts ./src/server.ts --outdir ./dist --target node --watch & while true; do cp dist/server.js ~/.config/opencode/plugin/superwhisper.js 2>/dev/null; sleep 1; done",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "prepublishOnly": "npm run build"
@@ -49,11 +60,8 @@
   "files": [
     "dist"
   ],
-  "peerDependencies": {
-    "@opencode-ai/plugin": ">=0.1.0"
-  },
   "devDependencies": {
-    "@opencode-ai/plugin": "latest",
+    "@opencode-ai/plugin": "^1.18.34",
     "@types/bun": "latest",
     "typescript": "^5.7.3"
   },
