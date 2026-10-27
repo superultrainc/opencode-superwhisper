@@ -3,6 +3,12 @@ name: Publish to npm
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish (for example, v1.1.0)'
+        required: true
+        type: string
 
 jobs:
   publish:
@@ -11,22 +17,39 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
       - run: npm install -g npm@latest
-      - run: bun install
       - name: Verify version matches release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${RELEASE_TAG#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "Release tag $TAG_VERSION doesn't match package.json $PKG_VERSION"
             exit 1
           fi
+      - name: Verify npm repository identity
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const expected = `https://github.com/${process.env.GITHUB_REPOSITORY}`;
+          if (pkg.repository?.url !== expected) {
+            console.error(`package.json repository.url must be ${expected} for npm trusted publishing and provenance.`);
+            process.exit(1);
+          }
+          NODE
+      - run: bun install --frozen-lockfile
       - run: bun test
       - run: bun run build
-      - run: npm publish --access public --provenance
+      - name: Publish to npm using trusted publishing
+        run: npm publish --access public --provenance

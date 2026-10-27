@@ -38,11 +38,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/superwhisper/opencode-superwhisper"
+    "url": "https://github.com/superultrainc/opencode-superwhisper"
   },
   "homepage": "https://superwhisper.com",
   "bugs": {
-    "url": "https://github.com/superwhisper/opencode-superwhisper/issues"
+    "url": "https://github.com/superultrainc/opencode-superwhisper/issues"
   },
   "publishConfig": {
     "access": "public"
