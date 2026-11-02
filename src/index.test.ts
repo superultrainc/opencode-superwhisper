@@ -1,13 +1,9 @@
 import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test"
-import {
-  buildDeeplinkUrl,
-  extractFullText,
-  extractSummary,
-  isEndTurn,
-  pollForResponse,
-  SuperWhisperPlugin,
-} from "./index.js"
-import type { DeeplinkParams } from "./index.js"
+import { SuperWhisperPlugin } from "./index.js"
+import { buildDeeplinkUrl } from "./deeplink.js"
+import { extractFullText, extractSummary, isEndTurn } from "./message.js"
+import { pollForResponse } from "./poll.js"
+import type { DeeplinkParams } from "./types.js"
 import { __setInboxDirForTest, type InboxPayload } from "./inbox.js"
 import { unlink, mkdir, readdir, readFile, rm } from "node:fs/promises"
 import { mkdirSync } from "node:fs"

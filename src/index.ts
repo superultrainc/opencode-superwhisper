@@ -13,17 +13,8 @@ import {
   normalizePermissionReply,
 } from "./normalize.js"
 
-export {
-  buildDeeplinkUrl,
-  extractFullText,
-  isEndTurn,
-  extractSummary,
-  pollForResponse,
-  parseQuestionResponse,
-  normalizeQuestions,
-  normalizePermissionReply,
-}
-export type { DeeplinkParams }
+// OpenCode calls every function this module exports as a plugin, so export only the plugin.
+// Helpers live in their own modules (deeplink, message, poll, normalize).
 
 const CANCELLED = "$$CANCELLED$$"
 
