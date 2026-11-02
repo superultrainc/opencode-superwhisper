@@ -60,6 +60,14 @@ async function countInboxPayloads(
 
 // --- extractFullText ---
 
+describe("module exports", () => {
+  // OpenCode calls every exported function as a plugin; a stray helper export kills the plugin.
+  it("exports only the plugin", async () => {
+    const mod = await import("./index.js")
+    expect(Object.values(mod).every((v) => v === SuperWhisperPlugin)).toBe(true)
+  })
+})
+
 describe("extractFullText", () => {
   it("returns empty string for null message", () => {
     expect(extractFullText(null)).toBe("")
